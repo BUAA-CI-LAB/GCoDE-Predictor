@@ -1,0 +1,1 @@
+When collecting predictor dataset samples, perform **multiple independent measurements** for each case, **remove outliers**, and then **average the remaining values** to ensure measurement accuracy and reduce noise.
