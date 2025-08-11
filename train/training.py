@@ -11,7 +11,7 @@ sys.path.append('../../../')
 
 from torch_geometric.loader import DataLoader
 import os
-# 只训练gin模型
+
 from tqdm import tqdm
 
 from model.predictor import GIN0
@@ -104,26 +104,14 @@ def train(args, io, train_loader,test_loader,model,device):
 
 
 def z_score_normalization(data_list):
-    """
-    对提供的样本列表进行z-score标准化。
 
-    参数:
-    - data_list (list of torch_geometric.data.Data): 数据列表。
-
-    返回:
-    - data_list (list of torch_geometric.data.Data): 标准化后的数据列表。
-    """
-
-    # 合并所有样本的延迟特征值（最后一个维度）
-    all_values = [data.x[:, -1] for data in data_list]  # 获取每个样本中的延迟特征
+    all_values = [data.x[:, -1] for data in data_list]
     all_values = torch.cat(all_values, dim=0)
 
-    # 计算均值和标准差
     mean = all_values.mean()
     std = all_values.std()
     io.cprint(f"mean: {mean}")
     io.cprint(f"std: {std}")
-    # 标准化每个样本的延迟特征
     for data in data_list:
         data.x[:, -1] = (data.x[:, -1] - mean) / (std + 1e-7)
 
@@ -135,21 +123,18 @@ def all_connect_global(data_list):
     processed_list = []
 
     for data in data_list:
-        # 获取所有指向0的边
+
         to_zero_edges = torch.nonzero(data.edge_index[1] == 0).squeeze()
 
-        # 如果没有指向0的边，则直接添加原数据到结果列表
         if to_zero_edges.numel() == 0:
             processed_list.append(data)
             continue
 
         new_edges = data.edge_index[:, to_zero_edges]
 
-        # 翻转这些边的方向（即0指向其他节点），但排除0到0的边
         new_edges = torch.flip(new_edges, [0])
         new_edges = new_edges[:, ~(new_edges[1] == 0)]
 
-        # 将新的边添加到原始的edge_index中，并确保没有重复的边
         data.edge_index = torch.cat([data.edge_index, new_edges], dim=1).unique(dim=1)
         processed_list.append(data)
 
@@ -202,7 +187,6 @@ if __name__ == '__main__':
 
     data_name = args.dataset_name
     dataset =get_data(data_name)
-    # train_indices, test_indices = regression_k_fold(dataset)
 
 
 

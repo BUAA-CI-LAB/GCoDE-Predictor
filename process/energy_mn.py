@@ -1,6 +1,5 @@
 import os
 import os.path as osp
-import shutil
 import numpy as np
 import torch
 import sys
@@ -8,24 +7,19 @@ import sys
 sys.path.append('.')
 sys.path.append('../../')
 
-from torch_geometric.data import InMemoryDataset, download_url, extract_zip
-from torch_geometric.data import Data
 from util import judge_exec_pose,compute_communicate,transfer_data_DE,transfer_data_DED_worker,\
     transfer_data_DED_master,transfer_data_ED_master,mode_judge
 from util import aggregate_index, _index_to_subop, _index_to_op
 from torch_geometric.data import Data, Batch
 import scipy.sparse as sp
-import csv
+from torch import Tensor
+from torch_geometric.typing import  PairOptTensor, PairTensor
 
+try:
+    from torch_cluster import knn
+except ImportError:
+    knn = None
 
-
-
-# 我们处理的时候，需要注意下，需要将最后的mlp进行一个编码，因此节点数量要+2，还有一个mlp
-# 数据归一化： 首先，考虑对节点的执行时间进行归一化，将其缩放到一个合适的范围，例如 [0, 1] 或 [-1, 1]。这可以确保不同节点之间的数值范围一致，有助于训练过程的稳定性。
-
-
-# 除了12个choice，还有3个MLP
-# in_channel, 512, 256, out_dim
 def compute_arch_channel_mn(choice,function):
 
     in_channel = 3
@@ -72,18 +66,10 @@ def compute_arch_channel_mn(choice,function):
             sys.exit()
         channel.append((in_channel,out_channel))
         in_channel = out_channel
-    # 共15对
     return channel
 
 def communicate_data(channel,choice,mode):
-    from torch import Tensor
-    from torch_geometric.nn.conv import MessagePassing, GCNConv
-    from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor
 
-    try:
-        from torch_cluster import knn
-    except ImportError:
-        knn = None
 
     index = [i for i, element in enumerate(choice) if element == 5]
 
@@ -175,18 +161,10 @@ def communicate_data(channel,choice,mode):
         sys.exit()
     return data1,data2
 def generate_adj():
-    # 三个特殊节点，6种OP
-    # mn上超网一共12层，加上最后三层mlp，一共15层，因此共有18个节点
-    # DE代表只有一个5，其他两个都得两个5，因此DE的output会有值，算5节点的延迟
-    # ajadency matrix
-
-
     A = np.zeros(shape=[18, 18])
     for i in range(0, 18):
         A[i][i] = 1
-        # 这里使用的所有节点指向global节点
         A[i][0] = 1
-    # input连接第一个op
     A[1][2] = 1
     for i in range(0, 15):
         A[i + 2][i + 3] = 1
@@ -196,16 +174,10 @@ def generate_adj():
 
 
 
-# 18个节点
-# 0：global，1：input，2-16:15层op。 17、output
-# 使用的lat的最终构造方法，cat
 def generate_feature(edge,choice,function,bandwidth):
-    # from design_space_mn.op_index_architecture import _op_to_index, _index_to_op, _op_to_subop, aggregate_index, \
-    #     index_aggregate, _subop_to_index, _index_to_subop
-    # from util import mode_judge
+
     ms=choice+choice
     mode = mode_judge(ms)
-    # 计算维度
     channel = compute_arch_channel_mn(choice, function)
 
     device = "tx2"
@@ -214,18 +186,10 @@ def generate_feature(edge,choice,function,bandwidth):
     commu_power = 3004
     dataset="mn"
 
-    # 单位是：ms
     device_lat_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)),'..', 'lut',device,f'LUT_{dataset}.pkl'))
     edge_lat_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)), '..', 'lut',edge, f'LUT_{dataset}.pkl'))
 
-    # 单位是：J
     device_energy_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)),'..', 'lut',device,f'LUT_{dataset}_energy.pkl'))
-
-    # 初始化节点特征列表
-    # 创建一个空的 PyTorch 张量来存储初始特征
-    # one hot op, function = lat
-    # 6 op+input+out+global=9,1 lat, total=10
-    # 0:global, 1:input, 2-13:arch,14:mlp1,15:mlp2,16:mlp3,17:output
 
     x = np.zeros((18, 10))
     x[0][6] = 1  # global node
@@ -234,7 +198,6 @@ def generate_feature(edge,choice,function,bandwidth):
     # lat fuzhi
     x[0][-1] = 0
     x[1][-1] = 0
-    # 三个特殊节点赋值，都为0，但是当DE模式时，output不为0，算5的通信能耗
 
     if mode=="DE":
         data1, data2 = communicate_data(channel, choice, mode)
@@ -246,12 +209,10 @@ def generate_feature(edge,choice,function,bandwidth):
 
     exc_pos = judge_exec_pose(choice)
     for i,op in enumerate(choice):
-        # 获取节点的操作类型（com、agg、knn、pool）
         op_type = _index_to_op[op]
         in_dim,out_dim = channel[i]
         if op_type == "graph_process":
             op_type = 'knn'
-        # 根据操作类型查找延迟值
         if op_type == 'connect':
             energy = 0
         elif op_type == "combine":
@@ -269,7 +230,6 @@ def generate_feature(edge,choice,function,bandwidth):
             if exc_pos[i]==0:
                 energy = device_energy_lut[key_to_search]
             elif exc_pos[i]==1:
-                # 这里需要用静态功率乘以对应边缘端执行时间，因为这个时候板子也是在空转的
                 lat = edge_lat_lut[key_to_search]
                 energy = lat/1000*static_power
             else:
@@ -303,7 +263,6 @@ def generate_feature(edge,choice,function,bandwidth):
                 sys.exit()
         x[i + 2][op] = 1
         x[i+2][-1] = energy
-    # 计算最后三层MLP的延迟
 
     pool_flag = False
     for j in range(12):
@@ -350,12 +309,8 @@ def generate_feature(edge,choice,function,bandwidth):
     return initial_features_tensor
 
 def generate_feature_v2(edge,choice,function,bandwidth):
-    # from design_space_mn.op_index_architecture import _op_to_index, _index_to_op, _op_to_subop, aggregate_index, \
-    #     index_aggregate, _subop_to_index, _index_to_subop
-    # from util import mode_judge
     ms=choice+choice
     mode = mode_judge(ms)
-    # 计算维度
     channel = compute_arch_channel_mn(choice, function)
 
     device = "tx2"
@@ -364,18 +319,12 @@ def generate_feature_v2(edge,choice,function,bandwidth):
     commu_power = 3004/1000
     dataset="mn"
 
-    # 单位是：ms
     device_lat_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)),'..', 'lut',device,f'LUT_{dataset}.pkl'))
     edge_lat_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)), '..', 'lut',edge, f'LUT_{dataset}.pkl'))
 
-    # 单位是：J
+
     device_energy_lut = torch.load(os.path.join(osp.dirname(osp.realpath(__file__)),'..', 'lut',device,f'LUT_{dataset}_energy.pkl'))
 
-    # 初始化节点特征列表
-    # 创建一个空的 PyTorch 张量来存储初始特征
-    # one hot op, function = lat
-    # 6 op+input+out+global=9,1 lat, total=10
-    # 0:global, 1:input, 2-13:arch,14:mlp1,15:mlp2,16:mlp3,17:output
 
     x = np.zeros((18, 10))
     x[0][6] = 1  # global node
@@ -384,7 +333,7 @@ def generate_feature_v2(edge,choice,function,bandwidth):
     # lat fuzhi
     x[0][-1] = 0
     x[1][-1] = 0
-    # 三个特殊节点赋值，都为0，但是当DE模式时，output不为0，算5的通信能耗
+
 
     if mode=="DE":
         data1, data2 = communicate_data(channel, choice, mode)
@@ -396,12 +345,10 @@ def generate_feature_v2(edge,choice,function,bandwidth):
 
     exc_pos = judge_exec_pose(choice)
     for i,op in enumerate(choice):
-        # 获取节点的操作类型（com、agg、knn、pool）
         op_type = _index_to_op[op]
         in_dim,out_dim = channel[i]
         if op_type == "graph_process":
             op_type = 'knn'
-        # 根据操作类型查找延迟值
         if op_type == 'connect':
             energy = 0
         elif op_type == "combine":
@@ -419,7 +366,6 @@ def generate_feature_v2(edge,choice,function,bandwidth):
             if exc_pos[i]==0:
                 energy = device_energy_lut[key_to_search]
             elif exc_pos[i]==1:
-                # 这里需要用静态功率乘以对应边缘端执行时间，因为这个时候板子也是在空转的
                 lat = edge_lat_lut[key_to_search]
                 energy = lat/1000*static_power
             else:
@@ -453,7 +399,6 @@ def generate_feature_v2(edge,choice,function,bandwidth):
                 sys.exit()
         x[i + 2][op] = 1
         x[i+2][-1] = energy
-    # 计算最后三层MLP的延迟
 
     pool_flag = False
     for j in range(12):
@@ -472,7 +417,6 @@ def generate_feature_v2(edge,choice,function,bandwidth):
         print(f"The key {key_to_search1} does not exist in the data.")
         sys.exit()
     else:
-        # 只有DE是MLP在E上算的
         if mode != "DE":
             e1 = device_energy_lut[key_to_search1]
             e2 = device_energy_lut[key_to_search2]
@@ -512,13 +456,9 @@ def load_data_LUT(path,edge_name,bandwidth = 40):
             total_energy = np.float64(data[2])
             # 12 layers，op input output global,
 
-            # 获得adj
             G = generate_adj()
-            # 获得特征
-            # x = generate_feature(edge_name,choice,function,bandwidth)
             x = generate_feature_v2(edge_name,choice,function,bandwidth)
 
-            # 这里算完feature了
 
             # tag
             y = torch.from_numpy(np.array([total_energy]).astype(np.float64))
@@ -543,7 +483,6 @@ def predictor_infor_data(choice ,function,edge_name,bandwidth,mean,std):
     data_l = []
     G = generate_adj()
     device_name = "tx2"
-    # 获得特征
     x = generate_feature_v2(edge_name,choice,function,bandwidth)
     last_x = x[:, -1]
     lut_e = last_x.sum()
@@ -551,10 +490,9 @@ def predictor_infor_data(choice ,function,edge_name,bandwidth,mean,std):
     edge_tmp = sp.coo_matrix(G)
     indices = np.vstack((edge_tmp.row, edge_tmp.col))
     edge = torch.LongTensor(indices)
-    # print(edge)
+
     data = Data(x=x, edge_index=edge)
 
-    # 进行标准化
     data.x[:, -1] = (data.x[:, -1] - mean) / (std + 1e-7)
 
     data_l.append(data)

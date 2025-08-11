@@ -24,7 +24,7 @@ The predictor estimates **co-inference latency** and **on-device energy consumpt
 
 ### Requirements
 - Python ≥ 3.8  
-- PyTorch (recent version)  
+- PyTorch ≥ 1.11 
 - PyG ≥ 2.1  
 - numpy  
 
@@ -32,7 +32,49 @@ The predictor estimates **co-inference latency** and **on-device energy consumpt
 
 ### Usage
 
-#### 1. Prepare Data
+#### 1. Dataset Preparation Guidelines
+The dataset preparation process consists of two major stages: **LUT Construction** and **Training Dataset Construction**.
+
+---
+
+##### A. LUT Construction
+
+The Lookup Table (LUT) stores operation-level latency or power measurements for GNN operators on specific devices.  
+It is built in two steps:
+
+1. **Operation Data Measurement**
+   - Select all GNN operations used in the target search/design space (e.g., KNN, Combine, pooling, aggregate).
+   - For each operation and each `(in_dim, out_dim)` pair:
+     - Perform **multiple independent measurements** under identical hardware/software settings.
+     - Measure both **latency** (ms) and/or **power consumption** (W), depending on the LUT type.
+   - Store results in TXT files with the following format:
+        ```
+        operation_name,in_dim,out_dim,value
+        ```
+        where:
+        - `operation_name`: Name of the GNN operation.
+        - `in_dim`: Input feature dimension.
+        - `out_dim`: Output feature dimension.
+        - `value`: Measured latency (ms) or power (W).
+     
+        **Example (latency LUT raw file):**
+        ```
+        aggregate,3,6,0.22633870442708334
+        aggregate,6,12,0.27776615960257395
+        aggregate,12,24,0.43201446533203125
+        aggregate,24,48,0.7267793019612631
+        ```
+2. **LUT Packaging**
+   - Convert the cleaned TXT files into PKL format using:
+     ```bash
+     python LUT/generate_LUT.py
+     ```
+   - The resulting PKL files will be stored in `LUT/` and used directly during dataset construction.
+
+---
+
+
+
 Before training the predictor, collect and process:
 - **Sample dataset** in `dataset/`
 - **LUT data** in `LUT/`

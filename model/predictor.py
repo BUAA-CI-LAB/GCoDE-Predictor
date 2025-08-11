@@ -1,11 +1,3 @@
-"""
--------------------------------------------------
-# ProjectName：GNN_Co_Inference
-# FileName: GIN.py
-# Author: zhouao
-# Date: 2023/10/13
--------------------------------------------------
-"""
 import sys
 
 import torch

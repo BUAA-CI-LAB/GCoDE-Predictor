@@ -148,9 +148,6 @@ _index_to_subop = {
 }
 
 
-
-
-# 用于测量时间时排除异常值，返回的是列表，使用的时候要用个平均，还需要判断，如果列表为空，则这次测量不行，重新测
 def time_mean(data):
     q1 = np.percentile(data, 25)
     q3 = np.percentile(data, 75)
@@ -162,33 +159,22 @@ def time_mean(data):
 
     return average
 
-
-# 计算通信模块的延迟
 def compute_communicate(data, bandwidth_mbps):
 
     data = compress_and_convert(data)
 
-    data_size = len(data)  # 数据大小，单位是字节
+    data_size = len(data)
 
-    # 计算传输时间，单位是秒
     transfer_time_seconds = (data_size * 8) / (bandwidth_mbps * 10 ** 6)
 
-    # 转换为毫秒
     transfer_time_ms = transfer_time_seconds * 1000
 
     return transfer_time_ms
 
-
-
-# model_str用list把
 def model_str_revert(model_str, lyaers=12):
     if isinstance(model_str, list):
-        # 提取原始数组
-        # 根据每个原始数组的长度，将大列表分割成三个子列表
         op = model_str[:lyaers]
         function = model_str[lyaers:]
-
-    # 用于发送的模型信息
     elif isinstance(model_str, str):
         actual_list = ast.literal_eval(model_str)
         op = actual_list[:lyaers]
@@ -216,7 +202,7 @@ def transfer_data_DED_worker(x, edge_index, batch, op):
             first_5_found = True
             continue
         if first_5_found:
-            if num == 5:  # 如果找到第二个5，退出循环
+            if num == 5:
                 break
             if num == 3:
                 batch_t = True
@@ -236,7 +222,7 @@ def transfer_data_DED_master(x, edge_index, batch,  op, dataset):
     if dataset=="mr":
         return (x,None,None)
     else:
-        if op[-1] == 5:  # 如果第二个5是列表的最后一个元素
+        if op[-1] == 5:
             edge_index = None
             batch = None
         else:
@@ -270,7 +256,7 @@ def transfer_data_ED_master(x, edge_index, batch, op,dataset):
     if dataset=="mr":
         return (x,None,None)
     else:
-        if op[-1] == 5:  # 如果第二个5是列表的最后一个元素
+        if op[-1] == 5:
             edge_index = None
             batch = None
         else:
@@ -282,7 +268,7 @@ def transfer_data_ED_master(x, edge_index, batch, op,dataset):
                     first_5_found = True
                     continue
                 if first_5_found and not second_5_found:
-                    if num == 5:  # 找到第二个5，开始判断
+                    if num == 5:
                         second_5_found = True
                         continue
                 if second_5_found:
@@ -300,19 +286,16 @@ def transfer_data_ED_master(x, edge_index, batch, op,dataset):
         return data
 
 def decompress_and_convert(data):
-    # 解压缩
+
     decompressed_data = zlib.decompress(data)
 
-    # 使用pickle加载数据
     A = pickle.loads(decompressed_data)
     x, edge_index, batch = A
 
-    # 如果edge_index为int16，则转换为int64
     if edge_index is not None:
         if edge_index.dtype == torch.int16:
             edge_index = edge_index.to(dtype=torch.int64)
 
-    # 如果batch为int8，则转换为int64
     if batch is not None:
         if batch.dtype == torch.int8:
             batch = batch.to(dtype=torch.int64)
@@ -322,18 +305,14 @@ def decompress_and_convert(data):
 def compress_and_convert(A):
     x, edge_index, batch = A
 
-    # 如果edge_index不为None，则转换为int16
     if edge_index is not None and edge_index.dtype == torch.int64:
         edge_index = edge_index.to(dtype=torch.int16)
 
-    # 如果batch不为None，则转换为int8
     if batch is not None and batch.dtype == torch.int64:
         batch = batch.to(dtype=torch.int8)
 
-    # 使用pickle进行序列化
     serialized_data = pickle.dumps((x, edge_index, batch))
 
-    # 压缩
     compressed_data = zlib.compress(serialized_data)
 
     return compressed_data
@@ -347,7 +326,7 @@ def transfer_data_DE(x, edge_index, batch, op):
                 first_5_found = True
                 continue
             if first_5_found:
-                if num == 5:  # 如果找到第二个5，退出循环
+                if num == 5:
                     break
                 if num == 3:
                     batch_t = True
@@ -403,7 +382,6 @@ def mode_judge(model_str, lyaers=12):
         mode = "DED"
     return mode
 
-# msg 必须是str
 def msg_struct(msg, msg_type):
     if not isinstance(msg,str):
         msg = str(msg)
