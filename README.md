@@ -99,5 +99,10 @@ Navigate to the `train/` directory and run:
 - `--norm` : Whether to apply feature normalization (`True`/`False`).
 
 
+> **Note:**  
+> This repository is currently undergoing **code cleanup** and **engineering tests**.  
+> Citation information will be **updated in the near future**.  
+> A complete and stable release — including organized code, verified datasets, and detailed usage instructions — will be published soon.  
+> We welcome your **use** and **citation** of this work.
 
 
