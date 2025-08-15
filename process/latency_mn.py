@@ -542,12 +542,12 @@ def load_data_LUT(path,device_name,edge_name,norm=None,bandwidth = 40,gc="ori",f
 
 
 if __name__ == '__main__':
-    dataset_name = "mn_tx2_1060_40_new"
+    dataset_name = "mn_tx2_1060_40"
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..','dataset', 'mn_tx2_1060_40mbps.txt')
     graph_cons = 'ori'
     f = 'cat'
     processed_path = os.path.join(osp.dirname(osp.realpath(__file__)), '..', 'dataset', dataset_name, 'data.pt')
-    # ld = load_data_LUT(path, device_name='tx2', edge_name='1060', norm=None,bandwidth=40,gc=graph_cons,feature_method=f)
-    # torch.save(ld, processed_path)
-    a = torch.load(processed_path)
-    print(a)
+    ld = load_data_LUT(path, device_name='tx2', edge_name='1060', norm=None,bandwidth=40,gc=graph_cons,feature_method=f)
+    torch.save(ld, processed_path)
+    # a = torch.load(processed_path)
+    # print(a)

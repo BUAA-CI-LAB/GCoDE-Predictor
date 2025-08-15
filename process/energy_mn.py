@@ -281,7 +281,6 @@ def generate_feature(edge,choice,function,bandwidth):
         print(f"The key {key_to_search1} does not exist in the data.")
         sys.exit()
     else:
-        # 只有DE是MLP在E上算的
         if mode != "DE":
             e1 = device_energy_lut[key_to_search1]
             e2 = device_energy_lut[key_to_search2]
@@ -500,12 +499,12 @@ def predictor_infor_data(choice ,function,edge_name,bandwidth,mean,std):
 
 
 if __name__ == '__main__':
-    dataset_name = "mn_tx2_1060_e2"
+    dataset_name = "mn_tx2_1060"
     edge_name='1060'
-    path = osp.join(osp.dirname(osp.realpath(__file__)), '..','dataset', 'mn_tx2_i7_energy.txt')
+    path = osp.join(osp.dirname(osp.realpath(__file__)), '..','dataset', 'mn_tx2_1060_energy.txt')
 
     processed_path = os.path.join(osp.dirname(osp.realpath(__file__)), '..', 'dataset', dataset_name, 'data.pt')
-    # ld = load_data_LUT(path, edge_name=edge_name,bandwidth=40)
-    # torch.save(ld, processed_path)
-    a = torch.load(processed_path)
-    print(a)
+    ld = load_data_LUT(path, edge_name=edge_name,bandwidth=40)
+    torch.save(ld, processed_path)
+    # a = torch.load(processed_path)
+    # print(a)
