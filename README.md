@@ -8,8 +8,7 @@
 
 ### Overview
 
-This repository provides the implementation of the **system performance predictor** module from our work:  
-**"GCoDE: Efficient Device–Edge Co-Inference for GNNs via Architecture–Mapping Co-Search"** (submitted to *IEEE Transactions on Computers*).  
+This repository provides the implementation of the **system performance predictor** module from our work: **"GCoDE: Efficient Device–Edge Co-Inference for GNNs via Architecture–Mapping Co-Search"** (submitted to *IEEE Transactions on Computers*).  
 It is designed for estimating **co-inference latency** and **on-device energy consumption** in GNN device–edge co-inference scenarios.
 
 This repository provides:
