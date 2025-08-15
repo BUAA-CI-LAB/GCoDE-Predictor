@@ -119,16 +119,16 @@ The training dataset contains graph-structured samples representing complete GNN
 
 #### 2. Test Our Predictor
 
-**Provided dataset and pre-trained model**  
+**A. Provided dataset and pre-trained model**  
 
 - In the `dataset/` directory, we provide the latency dataset collected in our paper (about **9000** GNN architectures) as an example, named **`mn_pi_i7_40Mbps`**.  
 - This dataset was collected on the **ModelNet40** dataset under a **40 Mbps** network, using a **Raspberry Pi + Intel i7 CPU** device–edge setup.  
 - In the `predictor_test/outputs/` directory, we also provide the trained model parameters and test results on this dataset. 
 - Users can directly use the provided dataset and model to reproduce the results reported in our paper without re-training.
 
----
 
-**Testing the predictor**  
+
+**B. Testing the predictor**  
 
 If you want to reproduce the experiment results in our paper using the provided dataset and trained model, run the `test.py` script:
 
