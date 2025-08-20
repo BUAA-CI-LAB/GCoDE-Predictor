@@ -1,10 +1,11 @@
 import argparse
 import sys
+sys.path.append(".")
+sys.path.append("..")
 from util import IOStream, cal_loss, mape, rmse
 import torch
 import os.path as osp
-sys.path.append(".")
-sys.path.append("..")
+
 
 from torch_geometric.loader import DataLoader
 import os
